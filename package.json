@@ -9,7 +9,8 @@
     "build": "spago build",
     "test": "spago test",
     "clean": "rm -rf .cache .spago .psci_modules node_modules output",
-    "repl": "spago repl"
+    "repl": "spago repl",
+    "run": "spago run"
   },
   "repository": {
     "type": "git"

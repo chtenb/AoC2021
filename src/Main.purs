@@ -2,24 +2,64 @@ module Main where
 
 import Prelude
 
-import Effect.Console (log)
-import Data.List as List
+import DebugUtils
+import Data.Either (Either(..), note)
+import Data.Int as Int
 import Data.List (List, (:))
+import Data.List as List
+import Data.Maybe (Maybe(..))
+import Data.String.Utils (lines)
+import Data.String as String
 import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Aff as Aff
+import Effect.Console as Console
+import Effect.Exception (Error, try, error)
+import Node.Encoding (Encoding(..))
+import Node.FS.Sync (readTextFile)
 
 foreign import argv :: Array String
 
 args :: List String
 args = List.drop 2 $ List.fromFoldable argv
 
+readFile :: String -> Effect (Either Error String)
+readFile filename = try $ readTextFile UTF8 filename
+
 main :: Effect Unit
 main = do
-  pure unit
--- main = Aff.launchAff_ do
---   case args of
---     "help" : rest -> Aff.liftEffect $ log "help"
---     List.Nil ->  Aff.liftEffect $log "help"
---     _ -> do
---        Aff.liftEffect $log $ "Unknown arguments: " <> List.intercalate " " args
+  case args of
+    filename : List.Nil -> do
+      eitherInts <- parseFile filename
+      case eitherInts of
+        Left err -> Console.error $ "Could not read or parse file: " <> show err
+        Right ints -> Console.log $ show $ computeResult ints
+    _ -> Console.error "provide filename"
+
+parseFile :: String -> Effect (Either Error (List Int))
+parseFile filename = do
+  eitherText <- readFile filename
+  pure $ eitherText >>= (\text -> parseText text # note (error "something wrong"))
+
+parseText :: String -> Maybe (List Int)
+parseText text = text # lines # List.fromFoldable # List.filter (not String.null) <#> Int.fromString # listOfMaybesToMaybeList
+
+listOfMaybesToMaybeList :: forall a . (Show a) => List (Maybe a) -> Maybe (List a)
+listOfMaybesToMaybeList listOfMaybes =
+    List.foldr f (Just List.Nil) listOfMaybes
+      where
+      f maybeInt maybeResultList = case maybeResultList of
+        Nothing -> Nothing
+        Just resultList -> case maybeInt of
+          Nothing -> Nothing
+          Just int -> Just $ List.Cons int resultList
+
+computeResult :: List Int -> Int
+computeResult ints = diffInts ints # List.filter ((>) 0) # List.length
+
+diffInts :: List Int -> List Int
+diffInts List.Nil = List.Nil
+diffInts (List.Cons first ints) = (List.foldr f { result : List.Nil, prev : first } ints).result
+  where 
+  f :: Int -> { result :: List Int, prev :: Int } -> { result :: List Int, prev :: Int }
+  f int { result, prev } = { result : List.Cons (prev - int) result, prev : int }
+
+
