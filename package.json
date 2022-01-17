@@ -1,0 +1,38 @@
+{
+  "name": "play",
+  "version": "0.0.1",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "restore": "spago install && npm install",
+    "build": "spago build && echo Ctrl-f5 your browser if non-purescript changes were made!",
+    "test": "spago test",
+    "serve": "npm run build && parcel serve index.html",
+    "release": "rm -rf docs && npm run build && parcel build ./index.html --dist-dir docs/ --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html && git checkout -- docs/CNAME",
+    "publish": "npm run release && git add . && git commit -m publish",
+    "clean": "rm -rf .cache .spago .psci_modules node_modules output .parcel-cache",
+    "repl": "spago repl"
+  },
+  "repository": {
+    "type": "git",
+  },
+  "keywords": [
+  ],
+  "author": "Chiel ten Brinke",
+  "license": "ISC",
+  "bugs": {
+  },
+  "description": "",
+  "devDependencies": {
+    "parcel": "2.0.0-beta.3.1",
+    "purescript": "^0.14.5",
+    "spago": "^0.20.3"
+  },
+  "dependencies": {
+    "process": "^0.11.10",
+    "unirest": "^0.6.0",
+    "url": "^0.11.0",
+    "xhr2": "^0.2.1"
+  }
+}
