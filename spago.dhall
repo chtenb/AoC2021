@@ -13,7 +13,6 @@ to generate this file without the comments in this block.
 { name = "my-project"
 , dependencies =
   [ "aff"
-  , "affjax"
   , "arrays"
   , "assert"
   , "barlow-lens"
@@ -28,10 +27,7 @@ to generate this file without the comments in this block.
   , "foldable-traversable"
   , "foreign"
   , "functors"
-  , "halogen"
-  , "http-methods"
   , "integers"
-  , "js-timers"
   , "lists"
   , "maybe"
   , "newtype"
@@ -48,8 +44,6 @@ to generate this file without the comments in this block.
   , "transformers"
   , "tuples"
   , "typelevel-prelude"
-  , "web-dom"
-  , "web-html"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

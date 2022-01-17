@@ -6,23 +6,18 @@
   },
   "scripts": {
     "restore": "spago install && npm install",
-    "build": "spago build && echo Ctrl-f5 your browser if non-purescript changes were made!",
+    "build": "spago build",
     "test": "spago test",
-    "serve": "npm run build && parcel serve index.html",
-    "release": "rm -rf docs && npm run build && parcel build ./index.html --dist-dir docs/ --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html && git checkout -- docs/CNAME",
-    "publish": "npm run release && git add . && git commit -m publish",
-    "clean": "rm -rf .cache .spago .psci_modules node_modules output .parcel-cache",
+    "clean": "rm -rf .cache .spago .psci_modules node_modules output",
     "repl": "spago repl"
   },
   "repository": {
-    "type": "git",
+    "type": "git"
   },
-  "keywords": [
-  ],
+  "keywords": [],
   "author": "Chiel ten Brinke",
   "license": "ISC",
-  "bugs": {
-  },
+  "bugs": {},
   "description": "",
   "devDependencies": {
     "parcel": "2.0.0-beta.3.1",
