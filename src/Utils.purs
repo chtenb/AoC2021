@@ -2,7 +2,7 @@ module Utils where
 
 import Prelude
 
-import Data.Either (Either)
+import Data.Either (Either(..))
 import Data.List (List)
 import Data.List as List
 import Data.Maybe (Maybe(..))
@@ -24,3 +24,15 @@ listOfMaybesToMaybeList listOfMaybes =
           Nothing -> Nothing
           Just int -> Just $ List.Cons int resultList
 
+
+-- Picks the last left if any
+listOfEithersToEitherList :: forall a l . (Show a) => List (Either l a) -> Either l (List a)
+listOfEithersToEitherList listOfEithers =
+    List.foldr f (Right List.Nil) listOfEithers
+      where
+      f :: Either l a -> Either l (List a) -> Either l (List a)
+      f either eitherResultList = case eitherResultList of
+        Right resultList -> case either of
+          Right elem -> Right $ List.Cons elem resultList
+          Left l -> Left l
+        l -> l

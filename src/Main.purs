@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 import E1 as E1
+import E3 as E3
 import E10 as E10
 
 import Data.List (List, (:))
@@ -18,5 +19,6 @@ main :: Effect Unit
 main = do
   case args of
     "1" : rest -> E1.main rest
+    "3" : rest -> E3.main rest
     "10" : rest -> E10.main rest
-    _ -> Console.error "provide exercise"
+    _ -> Console.error "provide valid exercise"
