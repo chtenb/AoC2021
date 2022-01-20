@@ -6,13 +6,14 @@ import Data.Array as Array
 import Data.Either (Either(..), note)
 import Data.Eq ((/=))
 import Data.Foldable (class Foldable, foldl)
-import Data.Int as Int
 import Data.Int (Radix(..))
+import Data.Int as Int
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..))
+import Data.Maybe as Maybe
 import Data.String as String
-import Data.String.CodeUnits (toCharArray, fromCharArray)
+import Data.String.CodeUnits (charAt, fromCharArray, length, toCharArray)
 import Data.String.Utils (lines)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -27,15 +28,76 @@ main args = do
       eitherText <- readFile filename
       case eitherText of
         Left err -> Console.error $ "Could not read file: " <> show err
-        Right text -> case parseText text of
-          Nothing -> Console.error $ "Could not parse file"
-          Just parseResult -> case computeResult parseResult of
-            Nothing -> Console.error $ "Something went wrong during computation"
-            Just result -> Console.log $ show $ result
+        Right text -> 
+          let dataPoints = parseNonEmptyLines text
+          in do
+            case computePowerConsumption dataPoints of
+              Nothing -> Console.error $ "Something went wrong with computing power consumption"
+              Just result -> Console.log $ show $ result
+            case computeLifeSupportRating dataPoints of
+              Nothing -> Console.error $ "Something went wrong with computing life support rating"
+              Just result -> Console.log $ show $ result
     _ -> Console.error "provide filename"
 
 type DataPoint = String
-type DiagnosticAcc = List { zeros :: Int, ones :: Int }
+
+parseNonEmptyLines :: String -> List DataPoint
+parseNonEmptyLines text = text # lines # List.fromFoldable # List.filter (not String.null)
+
+type BitCount = { zeros :: Int, ones :: Int }
+emptyBitCount :: BitCount
+emptyBitCount = {zeros: 0, ones:0}
+type BitPosition = Int
+
+countBits :: List DataPoint -> BitPosition -> Maybe BitCount
+countBits dataPoints pos = List.foldl loop (Just emptyBitCount) dataPoints
+  where 
+  loop maybeBitCount dataPoint = case maybeBitCount of 
+    Nothing -> Nothing
+    Just bitCount -> case charAt pos dataPoint of
+      Just '0' -> Just bitCount {zeros = bitCount.zeros + 1}
+      Just '1' -> Just bitCount {ones = bitCount.ones + 1}
+      _ -> Nothing
+
+computeLifeSupportRating :: List DataPoint -> Maybe Int
+computeLifeSupportRating dataPoints = do
+  o <- oxygenGeneratorRating dataPoints
+  s <- scrubberRating dataPoints
+  pure $ o * s
+
+oxygenGeneratorRating :: List DataPoint -> Maybe Int
+oxygenGeneratorRating = dataPointFilter (\bitCount -> if bitCount.ones >= bitCount.zeros then '1' else '0')
+
+scrubberRating :: List DataPoint -> Maybe Int
+scrubberRating = dataPointFilter (\bitCount -> if bitCount.ones >= bitCount.zeros then '0' else '1')
+
+dataPointFilter :: (BitCount -> Char) -> List DataPoint -> Maybe Int
+dataPointFilter bitCriterium = dataPointFilterRec 0
+  where
+  dataPointFilterRec :: Int -> List DataPoint -> Maybe Int
+  dataPointFilterRec _ (List.Nil) = Nothing
+  dataPointFilterRec _ (List.Cons x List.Nil) = fromBinary x
+  dataPointFilterRec bitPos dataPoints =
+    dataPoints
+    # List.filter (\dataPoint -> not (Maybe.isNothing bitCriteriumChar) && charAt bitPos dataPoint == bitCriteriumChar)
+    # dataPointFilterRec (bitPos + 1)
+    where
+    bitCriteriumChar :: Maybe Char
+    bitCriteriumChar = 
+      case countBits dataPoints bitPos of
+        Nothing -> Nothing
+        Just bitCount -> Just $ bitCriterium bitCount
+
+-- PART 1
+
+computePowerConsumption :: List DataPoint -> Maybe Int
+computePowerConsumption dataPoints = do
+  diagnosticAcc <- accDiagnostics dataPoints
+  gamma <- gammaRate diagnosticAcc
+  epsilon <- epsilonRate diagnosticAcc
+  pure $ gamma * epsilon
+
+type DiagnosticAcc = List BitCount
 singleDiagnosticAcc :: DataPoint -> Maybe DiagnosticAcc 
 singleDiagnosticAcc dataPoint = dataPoint # toCharArray # List.fromFoldable <#>
   (\char -> case char of 
@@ -43,12 +105,6 @@ singleDiagnosticAcc dataPoint = dataPoint # toCharArray # List.fromFoldable <#>
     '1' -> Just {zeros:0,ones:1}
     _ -> Nothing)
   # listOfMaybesToMaybeList
-
-parseText :: String -> Maybe DiagnosticAcc
-parseText text = text # parseNonEmptyLines # accDiagnostics
-
-parseNonEmptyLines :: String -> List String
-parseNonEmptyLines text = text # lines # List.fromFoldable # List.filter (not String.null)
 
 accDiagnostics :: List DataPoint -> Maybe DiagnosticAcc
 accDiagnostics List.Nil = Nothing
@@ -66,12 +122,6 @@ addDataPoint maybeDiagnosticAcc dataPoint = case maybeDiagnosticAcc of
         '1' -> Just bitPositionAcc { ones = bitPositionAcc.ones + 1 }
         _ -> Nothing)
       # listOfMaybesToMaybeList
-
-computeResult :: DiagnosticAcc -> Maybe Int
-computeResult diagnosticAcc = do
-  gamma <- gammaRate diagnosticAcc
-  epsilon <- epsilonRate diagnosticAcc
-  pure $ gamma * epsilon
 
 gammaRate :: DiagnosticAcc -> Maybe Int
 gammaRate diagnosticAcc = diagnosticAcc

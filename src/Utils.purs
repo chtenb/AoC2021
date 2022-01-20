@@ -9,10 +9,13 @@ import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Exception (Error, try)
 import Node.Encoding (Encoding(..))
-import Node.FS.Sync (readTextFile)
+import Node.FS.Sync (readTextFile, writeTextFile)
 
 readFile :: String -> Effect (Either Error String)
 readFile filename = try $ readTextFile UTF8 filename
+
+writeFile :: String -> String -> Effect (Either Error Unit)
+writeFile filename text = try $ writeTextFile UTF8 filename text
 
 listOfMaybesToMaybeList :: forall a . (Show a) => List (Maybe a) -> Maybe (List a)
 listOfMaybesToMaybeList listOfMaybes =
