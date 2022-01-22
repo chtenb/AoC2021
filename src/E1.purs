@@ -23,13 +23,10 @@ main args = do
         Left err -> Console.error $ "Could not read or parse file: " <> show err
         Right ints ->  do
           _ <- writeFile "text.txt" $ List.foldl (\text int -> text <> show int <> "\n") "" ints
-          if List.length ints /= 2000
-          then Console.error $ "could not read all lines "
-          else pure unit
+          Console.log $ "input length: " <> show (List.length ints)
+          Console.log $ "diff length: " <> show (List.length (diffInts ints))
           Console.log $ show increases <> " " <> show unchanged <> " " <> show decreases
-          if increases + unchanged + decreases + 1 /= List.length ints
-          then Console.error $ "bug: " <> (show $ increases + unchanged + decreases) <> " + 1 /= " <> (show $ List.length ints)
-          else Console.log $ show $ increases
+          Console.log $ show $ increases
           where
           increases = countIncreases ints
           decreases = countDecreases ints
@@ -44,20 +41,27 @@ parseFile filename = do
 parseText :: String -> Maybe (List Int)
 parseText text = text # lines # List.fromFoldable # List.filter (not String.null) <#> Int.fromString # listOfMaybesToMaybeList
 
+windowedSums :: List Int -> List Int
+windowedSums (x:y:z:rest) = (x + y + z) : windowedSums (y:z:rest)
+windowedSums _ = List.Nil
+
+computeDiffs :: List Int -> List Int
+computeDiffs = windowedSums >>> diffInts
+
 countIncreases :: List Int -> Int
-countIncreases ints = diffInts ints # List.filter ((>) 0) # List.length
+countIncreases ints = ints # computeDiffs # List.filter (0 < _) # List.length
 
 countDecreases :: List Int -> Int
-countDecreases ints = diffInts ints # List.filter ((<) 0) # List.length
+countDecreases ints = ints # computeDiffs # List.filter (_ < 0) # List.length
 
 countUnchanged :: List Int -> Int
-countUnchanged ints = diffInts ints # List.filter ((==) 0) # List.length
+countUnchanged ints = ints # computeDiffs # List.filter (0 == _) # List.length
 
 diffInts :: List Int -> List Int
 diffInts List.Nil = List.Nil
-diffInts (List.Cons first ints) = (List.foldr f { result : List.Nil, prev : first } ints).result
+diffInts (List.Cons first ints) = (List.foldl f { result : List.Nil, prev : first } ints).result
   where 
-  f :: Int -> { result :: List Int, prev :: Int } -> { result :: List Int, prev :: Int }
-  f int { result, prev } = { result : List.Cons (int - prev) result, prev : int }
+  f :: { result :: List Int, prev :: Int } -> Int -> { result :: List Int, prev :: Int }
+  f { result, prev } int = { result : List.Cons (int - prev) result, prev : int }
 
 
