@@ -26,6 +26,7 @@
     "spago": "^0.20.3"
   },
   "dependencies": {
+    "big-integer": "^1.6.51",
     "process": "^0.11.10",
     "unirest": "^0.6.0",
     "url": "^0.11.0",
