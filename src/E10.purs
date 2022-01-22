@@ -2,6 +2,7 @@ module E10 where
 
 import Prelude
 
+import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(..), note)
 import Data.Foldable (sum)
 import Data.Int (odd)
@@ -11,7 +12,7 @@ import Data.Maybe (Maybe(..))
 import Data.String as String
 import Data.String.CodeUnits (singleton, toCharArray)
 import Data.String.Utils (lines)
-import DebugUtils (debug, debug_)
+import DebugUtils (debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Utils (listOfEithersToEitherList, readFile)
@@ -43,10 +44,10 @@ main args = do
         Right score -> Console.log $ show score
       _  -> do Console.error "provide valid part"
 
-part1 :: String -> Either String Int
+part1 :: String -> Either String BigInt
 part1 text = text # parseNonEmptyLines <#> parseInput <#> validationScore # listOfEithersToEitherList <#> sum
 
-part2 :: String -> Either String Int
+part2 :: String -> Either String BigInt
 part2 text =
   text
   # parseNonEmptyLines
@@ -55,21 +56,21 @@ part2 text =
     case _ of
       Incomplete parseResult -> Just parseResult
       _ -> Nothing
-  <#> flip autocompleteParserState 0
+  <#> flip autocompleteParserState (fromInt 0)
   # debug_
   # \results -> if odd $ List.length results then median results else Left "Not odd"
 
-median :: List Int -> Either String Int
+median :: List BigInt -> Either String BigInt
 median ints = List.sort ints # flip List.index (List.length ints / 2) # note "Could not find median"
 
-autocompleteParserState :: ParserState -> Int -> Int
+autocompleteParserState :: ParserState -> BigInt -> BigInt
 autocompleteParserState List.Nil score = score
 autocompleteParserState (bracket : parserState) score =
-  5 * score + case bracket of
-    Round -> 1
-    Square -> 2
-    Curly -> 3
-    Angled -> 4
+  fromInt 5 * score + case bracket of
+    Round -> fromInt 1
+    Square -> fromInt 2
+    Curly -> fromInt 3
+    Angled -> fromInt 4
   # autocompleteParserState parserState
 
 parseInput :: InputLine -> SyntaxValidationResult
@@ -98,13 +99,13 @@ parseBracket char = case char of
   '>' -> Right $ Close Angled
   unknown -> Left unknown
 
-validationScore :: SyntaxValidationResult -> Either String Int
+validationScore :: SyntaxValidationResult -> Either String BigInt
 validationScore = case _ of
   Unknown x -> Left $ "Unknown char " <> singleton x
-  Incomplete _ -> Right 0
-  Ok -> Right 0
-  Corrupted Round -> Right 3
-  Corrupted Square -> Right 57
-  Corrupted Curly -> Right 1197
-  Corrupted Angled -> Right 25137
+  Incomplete _ -> Right $ fromInt 0
+  Ok -> Right $ fromInt 0
+  Corrupted Round -> Right $ fromInt 3
+  Corrupted Square -> Right $ fromInt 57
+  Corrupted Curly -> Right $ fromInt 1197
+  Corrupted Angled -> Right $ fromInt 25137
 
