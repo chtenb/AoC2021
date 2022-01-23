@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 import E1 as E1
+import E2 as E2
 import E3 as E3
 import E10 as E10
 
@@ -19,6 +20,7 @@ main :: Effect Unit
 main = do
   case args of
     "1" : rest -> E1.main rest
+    "2" : _ -> E2.main
     "3" : rest -> E3.main rest
     "10" : rest -> E10.main rest
     _ -> Console.error "provide valid exercise"

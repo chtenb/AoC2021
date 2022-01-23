@@ -25,3 +25,7 @@ toList (Iterator iter) = iter Unit.unit # toList'
   toList' End = List.Nil
   toList' (Yield value rest) = value : toList rest
 
+force :: forall a . Iterator a -> Unit
+force (Iterator step) = case step Unit.unit of
+  End -> Unit.unit
+  Yield _ rest -> force rest
