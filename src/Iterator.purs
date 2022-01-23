@@ -2,30 +2,57 @@ module Iterator where
 
 import Prelude
 
-import Data.List (List, (:))
-import Data.List as List
+import Control.Monad.List.Trans (ListT(..))
+import Control.Monad.List.Trans as ListT
+import Data.Identity (Identity)
+import Data.Lazy (defer)
 import Data.Unit as Unit
-import Effect (Effect)
 
-data IterationStep a = End | Yield a (Iterator a)
-data Iterator a = Iterator (Unit -> IterationStep a)
+data IterationStep m a = Done | Yield a (IteratorT m a)
+data IteratorT m a = IteratorT (Unit -> m (IterationStep m a))
 
-fib :: Int -> Int -> Iterator Int
-fib a b = Iterator $ \_ -> if a < 100 then Yield (a+b) (fib b (a+b)) else End
+instance (Monad m) => Functor (IteratorT m) where
+  map :: forall a b. (a -> b) -> IteratorT m a -> IteratorT m b
+  map f (IteratorT iterator) =
+    IteratorT \_ -> iterator Unit.unit 
+      >>= \step -> case step of
+        Done -> pure Done
+        Yield value rest -> pure $ Yield (f value) (map f rest)
 
-square :: Iterator Int -> Iterator Int
-square (Iterator numbers) = Iterator \_ -> case numbers Unit.unit of
-  End -> End
-  Yield number rest -> Yield (number * number) (square rest)
+fold :: forall m a b . (Monad m) => (m b -> a -> m b) -> m b -> IteratorT m a -> m b
+fold f b (IteratorT iterator) = iterator Unit.unit >>= foldStep
+    where
+    foldStep :: IterationStep m a -> m b
+    foldStep = \step -> case step of
+      Done -> b
+      Yield value rest -> fold f (f b value) rest
 
-toList :: forall a . Iterator a -> List a
-toList (Iterator iter) = iter Unit.unit # toList'
-  where
-  toList' :: IterationStep a -> List a
-  toList' End = List.Nil
-  toList' (Yield value rest) = value : toList rest
+toList :: forall m a . (Monad m) => IteratorT m a -> ListT m a
+toList (IteratorT iterator) =
+  ListT $ iterator Unit.unit >>= \step -> case step of
+    Done -> pure ListT.Done
+    Yield value rest -> pure $ ListT.Yield value $ defer \_ -> toList rest
 
-force :: forall a . Iterator a -> Unit
-force (Iterator step) = case step Unit.unit of
-  End -> Unit.unit
-  Yield _ rest -> force rest
+fib :: Int -> Int -> IteratorT Identity Int
+fib a b = IteratorT \_ -> if a < 100 then pure $ Yield (a+b) (fib b (a+b)) else pure Done
+
+square :: forall m . (Monad m) => IteratorT m Int -> IteratorT m Int
+square = map \x -> x * x
+
+
+-- instance (Monad m) => Unfoldable1 (IteratorT m) where
+--   unfoldr1 :: forall a b. (b -> Tuple a (Maybe b)) -> b -> IteratorT m a
+--   unfoldr1 f b = go (f b)
+--     where
+--     -- go :: forall a b. Tuple a (Maybe b) -> IteratorT m a
+--     go thing = IteratorT \_ -> pure $ 
+--       case thing of
+--         Tuple x Nothing -> Yield x (IteratorT \_ -> Done)
+--         Tuple x (Just y) -> Yield x (go (f y))
+
+-- instance (Monad m) => Unfoldable (IteratorT m) where
+--   unfoldr f b = go (f b)
+--     where
+--       go = case _ of
+--         Nothing -> Done
+--         Just (Tuple x y) -> Yield (pure x) (defer \_ -> (go (f y)))

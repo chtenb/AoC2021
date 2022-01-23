@@ -28,7 +28,9 @@ to generate this file without the comments in this block.
   , "foldable-traversable"
   , "foreign"
   , "functors"
+  , "identity"
   , "integers"
+  , "lazy"
   , "lists"
   , "maybe"
   , "newtype"
@@ -46,6 +48,7 @@ to generate this file without the comments in this block.
   , "stringutils"
   , "transformers"
   , "tuples"
+  , "unfoldable"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
