@@ -16,6 +16,9 @@ data IteratorT m a = IteratorT (Unit -> m (IterationStep m a))
 empty :: forall m a . (Monad m) => IteratorT m a
 empty = IteratorT (\_ -> pure Done)
 
+singleton :: forall m a . (Monad m) => a -> IteratorT m a
+singleton a = IteratorT (\_ -> pure $ Yield a empty)
+
 map :: forall m a b . Monad m => (a -> b) -> IteratorT m a -> IteratorT m b
 map f (IteratorT it) = IteratorT \_ -> it Unit.unit >>= processStep
   where

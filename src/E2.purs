@@ -9,9 +9,10 @@ import Data.Int as Int
 import Data.List (foldMap)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.CodeUnits as String
+import Data.Unit as Unit
 import Effect (Effect)
 import Effect.Console as Console
-import Iterator (IteratorT, empty, fold, mapMaybe)
+import Iterator (IterationStep(..), IteratorT(..), empty, fold, mapMaybe)
 import ReadLines (readLines)
 import Text.Parsing.StringParser (Parser, ParseError, fail, unParser)
 import Text.Parsing.StringParser.CodeUnits (anyDigit, eof, string)
@@ -20,6 +21,7 @@ import Text.Parsing.StringParser.Combinators (many)
 main :: Effect Unit
 main = do
   readInputLines
+  # log
   <#> runParser parseInstruction
   # handleParseErrors 
   # fold processInstruction (pure initialPosition)
@@ -28,41 +30,50 @@ main = do
 
 computeEndResult :: Effect Position -> Effect Int
 computeEndResult eff = do
-  (Position { horizontal, vertical }) <- eff
+  { horizontal, vertical } <- eff
   pure $ horizontal * vertical
 
 -- TODO
 handleParseErrors :: forall a . IteratorT Effect (Either ParseError a) -> IteratorT Effect a
-handleParseErrors _ = empty
+handleParseErrors iterator = IteratorT \_ -> doStep iterator
   where
-  handle :: Either ParseError String -> Effect (Maybe String)
-  handle = case _ of
-    Left err -> do
-      Console.error $ show err
-      pure Nothing
-    Right result -> pure $ Just result
+  doStep :: IteratorT Effect (Either ParseError a) -> Effect (IterationStep Effect a)
+  doStep (IteratorT it) = it Unit.unit >>= processStep
+  processStep :: IterationStep Effect (Either ParseError a) -> Effect (IterationStep Effect a)
+  processStep step = case step of
+    Done -> pure Done
+    Yield value rest -> case value of
+      Left err -> do
+        Console.error $ show err
+        doStep rest
+      Right value -> pure $ Yield value $ handleParseErrors rest
 
-log :: IteratorT Effect String -> Effect Unit
-log iter = fold f (pure unit) iter
+log :: forall a . Show a => IteratorT Effect a -> IteratorT Effect a
+log iterator = IteratorT \_ -> doStep iterator
   where
-  f effect a = effect >>= \_ -> Console.log a
+  doStep :: IteratorT Effect a -> Effect (IterationStep Effect a)
+  doStep (IteratorT it) = it Unit.unit >>= processStep
+  processStep :: IterationStep Effect a -> Effect (IterationStep Effect a)
+  processStep step = case step of
+    Done -> pure Done
+    Yield value rest -> do
+      Console.log $ show value
+      pure $ Yield value $ log rest
 
 data Instruction = Forward Int | Down Int | Up Int
-newtype Position = Position { horizontal :: Int, vertical :: Int }
-unwrap :: Position -> { horizontal :: Int, vertical :: Int }
-unwrap (Position p) = p
+type Position = { horizontal :: Int, vertical :: Int }
 
 initialPosition :: Position
-initialPosition = Position { horizontal : 0, vertical : 0 }
+initialPosition = { horizontal : 0, vertical : 0 }
 
 readInputLines :: IteratorT Effect String
-readInputLines = readLines "data/2-test.txt"
+readInputLines = readLines "data/2.txt"
 
 parseInstruction :: Parser Instruction
 parseInstruction = parseForward <|> parseDown <|> parseUp
 
 parseForward :: Parser Instruction
-parseForward = string "foward " *> parseInt <#> Forward
+parseForward = string "forward " *> parseInt <#> Forward
 parseUp :: Parser Instruction
 parseUp = string "up " *> parseInt <#> Up
 parseDown :: Parser Instruction
@@ -78,8 +89,8 @@ parseInt =
 -- TODO: can we make this pure?
 processInstruction :: Effect Position -> Instruction -> Effect Position
 processInstruction eff instruction = do
-  (Position position) <- eff
-  pure $ Position case instruction of
+  position <- eff
+  pure $ case instruction of
     Forward i -> position { horizontal = position.horizontal + i }
     Down i -> position { vertical = position.vertical + i }
     Up i -> position { vertical = position.vertical - i }
