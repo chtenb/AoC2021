@@ -35,6 +35,14 @@ fold f b (IteratorT it) = it Unit.unit >>= processStep
     Done -> b
     Yield value rest -> fold f (f b value) rest
 
+fold' :: forall m a b . (Monad m) => (b -> a -> b) -> b -> IteratorT m a -> m b
+fold' f b (IteratorT it) = it Unit.unit >>= processStep
+  where
+  processStep :: IterationStep m a -> m b
+  processStep step = case step of
+    Done -> pure b
+    Yield value rest -> fold' f (f b value) rest
+
 filter :: forall m a . (Monad m) => (a -> Boolean) -> IteratorT m a -> IteratorT m a
 filter pred iterator = IteratorT \_ -> doStep iterator
   where
