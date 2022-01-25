@@ -1,11 +1,9 @@
 module ReadLines where
 
-import Prelude
-
 import Effect (Effect)
-import Iterator
+import Iterator (IteratorT)
 
-foreign import readLinesImpl :: String -> (IteratorT Effect String)
+foreign import readLinesImpl :: String -> IteratorT Effect String
 
 readLines :: String -> IteratorT Effect String
 readLines filename = readLinesImpl filename

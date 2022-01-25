@@ -8,10 +8,9 @@ import Data.Either (Either(..))
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits as String
-import Data.Unit as Unit
 import Effect (Effect)
 import Effect.Console as Console
-import Iterator (IterationStep(..), IteratorT(..), fold, fold')
+import Iterator (IteratorT, empty, fold, singleton, singleton')
 import ReadLines (readLines)
 import Text.Parsing.StringParser (Parser, ParseError, fail, unParser)
 import Text.Parsing.StringParser.CodeUnits (anyDigit, eof, string)
@@ -23,7 +22,7 @@ main = do
   # log
   <#> runParser parseInstruction
   # handleParseErrors 
-  # fold' processInstruction2 initialSubmarineState
+  # fold processInstruction2 initialSubmarineState
   # computeEndResult2
   >>= \answer -> Console.log $ show answer
 
@@ -37,32 +36,21 @@ computeEndResult1 eff = do
   { horizontal, vertical } <- eff
   pure $ horizontal * vertical
 
--- TODO: can we abstract over handleParseErrors and log?
+-- TODO: this looks like a specific instance of the bind function
 handleParseErrors :: forall a . IteratorT Effect (Either ParseError a) -> IteratorT Effect a
-handleParseErrors iterator = IteratorT \_ -> doStep iterator
+handleParseErrors iterator = iterator >>= f
   where
-  doStep :: IteratorT Effect (Either ParseError a) -> Effect (IterationStep Effect a)
-  doStep (IteratorT it) = it Unit.unit >>= processStep
-  processStep :: IterationStep Effect (Either ParseError a) -> Effect (IterationStep Effect a)
-  processStep step = case step of
-    Done -> pure Done
-    Yield eitherValue rest -> case eitherValue of
-      Left err -> do
-        Console.error $ show err
-        doStep rest
-      Right value -> pure $ Yield value $ handleParseErrors rest
+  f :: Either ParseError a -> IteratorT Effect a
+  f eitherValue = 
+    case eitherValue of
+      Left err -> singleton' (Console.error (show err)) >>= \_ -> empty
+      Right value -> singleton value
 
 log :: forall a . Show a => IteratorT Effect a -> IteratorT Effect a
-log iterator = IteratorT \_ -> doStep iterator
+log it = it >>= f
   where
-  doStep :: IteratorT Effect a -> Effect (IterationStep Effect a)
-  doStep (IteratorT it) = it Unit.unit >>= processStep
-  processStep :: IterationStep Effect a -> Effect (IterationStep Effect a)
-  processStep step = case step of
-    Done -> pure Done
-    Yield value rest -> do
-      Console.log $ show value
-      pure $ Yield value $ log rest
+  f :: a -> IteratorT Effect a
+  f a = singleton' $ Console.log (show a) >>= \_ -> pure a
 
 data Instruction = Forward Int | Down Int | Up Int
 type PositionPart1 = { horizontal :: Int, vertical :: Int }

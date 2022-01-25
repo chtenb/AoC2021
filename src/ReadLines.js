@@ -1,14 +1,19 @@
 "use strict";
 var Iterator = require("../Iterator/index.js");
+var lineByLine = require('n-readlines');
 
 exports.readLinesImpl = function (filename) {
-  const lineByLine = require('n-readlines');
-  const liner = new lineByLine(filename);
-  // let lineNumber = 0;
+
+  var liner = null;
 
   var next = function (unit) {
     var self = this;
+
     return function () {
+      // Open the file once we are in the Effect monad
+      if (liner === null)
+        liner = new lineByLine(filename);
+
       // console.log('performing step');
       let line;
 
