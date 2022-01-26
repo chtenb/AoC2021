@@ -13,6 +13,9 @@ import Data.Unit as Unit
 data IterationStep m a = Done | Yield a (IteratorT m a)
 data IteratorT m a = IteratorT (Unit -> m (IterationStep m a))
 
+getStep :: forall m a . IteratorT m a -> m (IterationStep m a)
+getStep (IteratorT it) = it Unit.unit
+
 empty :: forall m a . (Monad m) => IteratorT m a
 empty = IteratorT (\_ -> pure Done)
 
@@ -21,9 +24,6 @@ singleton a = IteratorT (\_ -> pure $ Yield a empty)
 
 lift :: forall m a . (Monad m) => m a -> IteratorT m a
 lift ma = IteratorT (\_ -> ma >>= \a -> pure $ Yield a empty)
-
-getStep :: forall m a . IteratorT m a -> m (IterationStep m a)
-getStep (IteratorT it) = it Unit.unit
 
 map :: forall m a b . Monad m => (a -> b) -> IteratorT m a -> IteratorT m b
 map f it = IteratorT \_ -> getStep it >>= processStep
@@ -56,39 +56,37 @@ bind it f = IteratorT \_ -> getStep it >>= processStep
     Yield value rest -> getStep $ concat (f value) (bind rest f)
 
 fold :: forall m a b . (Monad m) => (b -> a -> b) -> b -> IteratorT m a -> m b
-fold f b (IteratorT it) = it Unit.unit >>= processStep
+fold f b it = getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m b
   processStep step = case step of
     Done -> pure b
     Yield value rest -> fold f (f b value) rest
 
-fold' :: forall m a b . (Monad m) => (m b -> a -> m b) -> m b -> IteratorT m a -> m b
-fold' f b (IteratorT it) = it Unit.unit >>= processStep
+fold' :: forall m a b . (Monad m) => (b -> a -> m b) -> b -> IteratorT m a -> m b
+fold' f b it = getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m b
   processStep step = case step of
-    Done -> b
-    Yield value rest -> fold' f (f b value) rest
+    Done -> pure b
+    Yield value rest -> f b value >>= \x -> fold' f x rest
 
 filter :: forall m a . (Monad m) => (a -> Boolean) -> IteratorT m a -> IteratorT m a
-filter pred iterator = IteratorT \_ -> doStep iterator
+filter pred iterator = IteratorT \_ -> getStep iterator >>= processStep
   where
-  doStep :: IteratorT m a -> m (IterationStep m a)
-  doStep (IteratorT it) = it Unit.unit >>= processStep
   processStep :: IterationStep m a -> m (IterationStep m a)
   processStep step = case step of
     Done -> pure Done
     Yield value rest ->
       if pred value
       then pure $ Yield value $ filter pred rest
-      else doStep rest
+      else getStep rest >>= processStep
 
 mapMaybe :: forall m a b. Monad m => (a -> Maybe b) -> IteratorT m a -> IteratorT m b
 mapMaybe f iterator = IteratorT \_ -> doStep iterator
   where
   doStep :: IteratorT m a -> m (IterationStep m b)
-  doStep (IteratorT it) = it Unit.unit >>= processStep
+  doStep it = getStep it >>= processStep
   processStep :: IterationStep m a -> m (IterationStep m b)
   processStep step = case step of
     Done -> pure Done
@@ -97,8 +95,8 @@ mapMaybe f iterator = IteratorT \_ -> doStep iterator
       Just mappedValue -> pure $ Yield mappedValue $ mapMaybe f rest
 
 toList :: forall m a . (Monad m) => IteratorT m a -> ListT m a
-toList (IteratorT it) =
-  ListT $ it Unit.unit >>= \step -> case step of
+toList it =
+  ListT $ getStep it >>= \step -> case step of
     Done -> pure ListT.Done
     Yield value rest -> pure $ ListT.Yield value $ defer \_ -> toList rest
 

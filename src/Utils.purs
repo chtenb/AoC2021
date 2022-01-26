@@ -11,6 +11,7 @@ import Effect.Exception (Error, try)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile, writeTextFile)
 
+
 readFile :: String -> Effect (Either Error String)
 readFile filename = try $ readTextFile UTF8 filename
 

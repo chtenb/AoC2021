@@ -10,7 +10,7 @@ import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits as String
 import Effect (Effect)
 import Effect.Console as Console
-import Iterator (IteratorT, empty, fold, singleton, singleton')
+import Iterator (IteratorT, empty, fold, singleton, lift)
 import ReadLines (readLines)
 import Text.Parsing.StringParser (Parser, ParseError, fail, unParser)
 import Text.Parsing.StringParser.CodeUnits (anyDigit, eof, string)
@@ -43,14 +43,14 @@ handleParseErrors iterator = iterator >>= f
   f :: Either ParseError a -> IteratorT Effect a
   f eitherValue = 
     case eitherValue of
-      Left err -> singleton' (Console.error (show err)) >>= \_ -> empty
+      Left err -> lift (Console.error (show err)) >>= \_ -> empty
       Right value -> singleton value
 
 log :: forall a . Show a => IteratorT Effect a -> IteratorT Effect a
 log it = it >>= f
   where
   f :: a -> IteratorT Effect a
-  f a = singleton' $ Console.log (show a) >>= \_ -> pure a
+  f a = lift $ Console.log (show a) >>= \_ -> pure a
 
 data Instruction = Forward Int | Down Int | Up Int
 type PositionPart1 = { horizontal :: Int, vertical :: Int }
