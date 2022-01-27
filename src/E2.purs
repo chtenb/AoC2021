@@ -3,6 +3,7 @@ module E2 where
 import Prelude
 
 import Control.Alt ((<|>))
+import Control.Monad.Cont (lift)
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Int as Int
@@ -10,7 +11,7 @@ import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits as String
 import Effect (Effect)
 import Effect.Console as Console
-import Iterator (IteratorT, empty, fold, singleton, lift)
+import Iterator (IteratorT, empty, fold, singleton)
 import ReadLines (readLines)
 import Text.Parsing.StringParser (Parser, ParseError, fail, unParser)
 import Text.Parsing.StringParser.CodeUnits (anyDigit, eof, string)

@@ -111,8 +111,12 @@ instance (Monad m) => Applicative (IteratorT m) where
 instance (Monad m) => Bind (IteratorT m) where
   bind = bindIt
 
-instance (Monad m) => MonadTrans IteratorT where
+instance (Monad m) => Monad (IteratorT m)
+
+instance MonadTrans IteratorT where
   lift = liftIt
+
+-- EXAMPLES
 
 fib :: Int -> Int -> IteratorT Identity Int
 fib a b = IteratorT \_ -> if a < 100 then pure $ Yield (a+b) (fib b (a+b)) else pure Done
