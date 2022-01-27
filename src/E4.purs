@@ -11,7 +11,7 @@ import Data.List.NonEmpty (toList)
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (drop)
 import Data.Tuple (Tuple(..))
-import DebugUtils (debug_)
+import DebugUtils (debug, debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
@@ -22,16 +22,23 @@ import Text.Parsing.StringParser.Combinators (sepBy, sepBy1)
 import Utils (readFile)
 
 readInput :: Effect (Either Error String)
-readInput = readFile "data/4-test.txt"
+readInput = readFile "data/4.txt"
 
 type DrawnNumbers = List Int
 data BoardCell = BoardCell Int Boolean
 instance Show BoardCell where
-  show (BoardCell i b) = show i <> "," <> show b
+  show (BoardCell i b) = "(" <> show i <> "," <> show b <> ")"
 type BoardRow = List BoardCell
 type Board = List BoardRow
 type Score = Int
 data GameState = GameState DrawnNumbers (List Board)
+
+printBoardRow :: BoardRow -> String
+printBoardRow List.Nil = ""
+printBoardRow (c:cs) = show c <> "   " <> printBoardRow cs
+printBoard :: Board -> String
+printBoard List.Nil = ""
+printBoard (row:rows) = printBoardRow row <> "\n" <> printBoard rows
 
 extractColumn :: Board -> Tuple BoardRow Board
 extractColumn List.Nil = Tuple List.Nil List.Nil
@@ -97,9 +104,9 @@ playGame (GameState (List.Nil) _) = List.Nil
 playGame (GameState (draw:remainingNumbers) boards) = let
   newBoards = boards <#> checkNumber draw
   winningBoards = List.filter hasBingo newBoards
-  in case debug_ winningBoards of
+  in case winningBoards of
     List.Nil -> playGame $ GameState remainingNumbers newBoards
-    w -> w <#> getBoardScore draw
+    w -> w <#> \b -> getBoardScore draw (debug (printBoard b) b)
 
 
 runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a

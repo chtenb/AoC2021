@@ -94,12 +94,6 @@ mapMaybe f iterator = IteratorT \_ -> doStep iterator
       Nothing -> doStep rest
       Just mappedValue -> pure $ Yield mappedValue $ mapMaybe f rest
 
-toList :: forall m a . (Monad m) => IteratorT m a -> ListT m a
-toList it =
-  ListT $ getStep it >>= \step -> case step of
-    Done -> pure ListT.Done
-    Yield value rest -> pure $ ListT.Yield value $ defer \_ -> toList rest
-
 instance (Monad m) => Functor (IteratorT m) where
   map = map
 
