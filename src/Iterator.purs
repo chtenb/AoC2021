@@ -7,6 +7,7 @@ import Data.Identity (Identity)
 import Data.List (List)
 import Data.List as List
 import Data.Maybe (Maybe(..))
+import Data.Tuple (Tuple(..))
 import Data.Unit as Unit
 
 data IterationStep m a = Done | Yield a (IteratorT m a)
@@ -98,6 +99,28 @@ toList it =
   getStep it >>= \step -> case step of
     Done -> pure List.Nil
     Yield value rest -> toList rest >>= map pure (List.Cons value)
+
+fromList :: forall a . List a -> IteratorT Identity a
+fromList List.Nil = empty
+fromList (List.Cons x xs) =IteratorT \_ -> pure $ Yield x (fromList xs)
+
+cartesianProduct :: forall a . List a -> List a -> IteratorT Identity (Tuple a a)
+cartesianProduct List.Nil _ = empty
+cartesianProduct _ List.Nil = empty
+cartesianProduct (List.Cons x xs) ys = concat combineX (cartesianProduct xs ys)
+  where
+  combineX = fromList ys <#> \y -> Tuple x y
+
+-- without duplicates
+allPairs :: forall a . List a -> IteratorT Identity (Tuple a a)
+allPairs list = allPairs' List.Nil list
+  where
+  allPairs' :: List a -> List a -> IteratorT Identity (Tuple a a)
+  allPairs' _ List.Nil = empty
+  allPairs' left (List.Cons x right) = concat (concat (combineX left) (combineX right)) (allPairs' (List.Cons x left) right)
+    where
+    combineX :: List a -> IteratorT Identity (Tuple a a)
+    combineX others = fromList others <#> \y -> Tuple x y
 
 instance (Monad m) => Functor (IteratorT m) where
   map = mapIt

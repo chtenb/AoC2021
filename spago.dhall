@@ -40,6 +40,7 @@ to generate this file without the comments in this block.
   , "node-streams"
   , "nonempty"
   , "options"
+  , "ordered-collections"
   , "partial"
   , "prelude"
   , "psci-support"

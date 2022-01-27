@@ -8,9 +8,10 @@ import Data.Int as Int
 import Data.List (List)
 import Data.List.NonEmpty (NonEmptyList)
 import Data.Maybe (Maybe(..))
+import Data.String.CodeUnits (drop)
 import Data.String.CodeUnits as String
 import Text.Parsing.StringParser (Parser(..), fail, try, unParser)
-import Text.Parsing.StringParser.CodeUnits (anyDigit, regex)
+import Text.Parsing.StringParser.CodeUnits (anyDigit, eof, regex)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, many1, many1Till, manyTill)
 
 parseEol :: Parser String
@@ -59,3 +60,15 @@ parseInt =
     >>= \maybeInt -> case maybeInt of
       Nothing -> (fail "error parsing int")
       Just int -> pure int
+
+
+runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a
+runParser parser inputString = case unParser (parser <* eof) { str: inputString, pos: 0 } of
+  Left rec -> Left msg
+    where
+    msg =
+      { position: show rec.pos
+      , error: rec.error
+      , suffix: (drop rec.pos inputString) }
+  Right rec -> do
+    pure rec.result

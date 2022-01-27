@@ -10,21 +10,38 @@ import Data.List as List
 import Data.List.NonEmpty (NonEmptyList, fromList, toList)
 import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe(..), fromJust)
-import Data.String.CodeUnits (drop)
 import Data.Tuple (Tuple(..))
 import DebugUtils (debug, debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
-import ParserUtils (parseEol, parseInt, parseSpaces, parseSpaces1, safeMany1)
+import ParserUtils (parseEol, parseInt, parseSpaces, parseSpaces1, runParser, safeMany1)
 import Partial.Unsafe (unsafePartial)
-import Text.Parsing.StringParser (Parser, unParser)
-import Text.Parsing.StringParser.CodeUnits (eof, string)
+import Text.Parsing.StringParser (Parser)
+import Text.Parsing.StringParser.CodeUnits (string)
 import Text.Parsing.StringParser.Combinators (sepBy1)
 import Utils (readFile)
 
 readInput :: Effect (Either Error String)
 readInput = readFile "data/4.txt"
+
+handleLeft :: forall a b . Show a => Either a b -> MaybeT Effect b
+handleLeft = case _ of
+  Left l -> MaybeT $ Console.log (show l) >>= \_ -> pure Nothing
+  Right r -> MaybeT $ pure $ Just r
+
+main :: Effect Unit
+main = do
+  _ <- runMaybeT main'
+  pure unit
+
+main' :: MaybeT Effect Unit
+main' = do
+  inputString <- lift readInput >>= handleLeft
+  input <- runParser parseInput inputString # handleLeft
+  scores <- pure $ findLosingScores input
+  lift $ Console.log $ show scores
+  pure unit
 
 type DrawnNumbers = NonEmptyList Int
 data BoardCell = BoardCell Int Boolean
@@ -100,24 +117,6 @@ getUncheckedNumbers board = List.concatMap (NEL.mapMaybe f) (toList board)
 getBoardScore :: Int -> Board -> Int
 getBoardScore lastNumber board = lastNumber * (List.foldl (+) 0 $ getUncheckedNumbers board)
 
-handleLeft :: forall a b . Show a => Either a b -> MaybeT Effect b
-handleLeft = case _ of
-  Left l -> MaybeT $ Console.log (show l) >>= \_ -> pure Nothing
-  Right r -> MaybeT $ pure $ Just r
-
-main :: Effect Unit
-main = do
-  _ <- runMaybeT main'
-  pure unit
-
-main' :: MaybeT Effect Unit
-main' = do
-  inputString <- lift readInput >>= handleLeft
-  input <- runParser parseInput inputString # handleLeft
-  scores <- pure $ findLosingScores input
-  lift $ Console.log $ show scores
-  pure unit
-
 findLosingScores :: GameState -> List Score
 findLosingScores (GameState draws boards) = findLosingScores' (toList draws) (toList boards)
   where
@@ -144,17 +143,6 @@ findWinningScores (GameState draws boards) = findWinningScores' (toList draws) b
 
 debugBoard :: NonEmptyList (NonEmptyList BoardCell) -> NonEmptyList (NonEmptyList BoardCell)
 debugBoard b = debug (printBoard (toPartialBoard b) <> "\n\n" <> printBoard (toPartialBoard (transposeBoard b))) b
-
-runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a
-runParser parser inputString = case unParser (parser <* eof) { str: inputString, pos: 0 } of
-  Left rec -> Left msg
-    where
-    msg =
-      { position: show rec.pos
-      , error: rec.error
-      , suffix: (drop rec.pos inputString) }
-  Right rec -> do
-    pure rec.result
 
 parseInput :: Parser GameState
 parseInput = do
