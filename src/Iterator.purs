@@ -3,10 +3,9 @@ module Iterator where
 import Prelude
 
 import Control.Monad.Trans.Class (class MonadTrans)
-import Control.Monad.List.Trans (ListT(..))
-import Control.Monad.List.Trans as ListT
 import Data.Identity (Identity)
-import Data.Lazy (defer)
+import Data.List (List)
+import Data.List as List
 import Data.Maybe (Maybe(..))
 import Data.Unit as Unit
 
@@ -22,19 +21,19 @@ empty = IteratorT (\_ -> pure Done)
 singleton :: forall m a . (Monad m) => a -> IteratorT m a
 singleton a = IteratorT (\_ -> pure $ Yield a empty)
 
-lift :: forall m a . (Monad m) => m a -> IteratorT m a
-lift ma = IteratorT (\_ -> ma >>= \a -> pure $ Yield a empty)
+liftIt :: forall m a . (Monad m) => m a -> IteratorT m a
+liftIt ma = IteratorT (\_ -> ma >>= \a -> pure $ Yield a empty)
 
-map :: forall m a b . Monad m => (a -> b) -> IteratorT m a -> IteratorT m b
-map f it = IteratorT \_ -> getStep it >>= processStep
+mapIt :: forall m a b . Monad m => (a -> b) -> IteratorT m a -> IteratorT m b
+mapIt f it = IteratorT \_ -> getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m (IterationStep m b)
   processStep step = pure case step of
     Done -> Done
-    Yield value rest -> Yield (f value) (map f rest)
+    Yield value rest -> Yield (f value) (mapIt f rest)
 
-apply :: forall m a b. Monad m => IteratorT m (a -> b) -> IteratorT m a -> IteratorT m b
-apply mf ma = do
+applyIt :: forall m a b. Monad m => IteratorT m (a -> b) -> IteratorT m a -> IteratorT m b
+applyIt mf ma = do
   f <- mf
   a <- ma
   pure $ f a
@@ -47,13 +46,13 @@ concat first second = IteratorT \_ -> getStep first >>= processStep
     Done -> getStep second
     Yield value rest -> pure $ Yield value (concat rest second)
 
-bind :: forall m a b . Monad m => IteratorT m a -> (a -> IteratorT m b) -> IteratorT m b
-bind it f = IteratorT \_ -> getStep it >>= processStep
+bindIt :: forall m a b . Monad m => IteratorT m a -> (a -> IteratorT m b) -> IteratorT m b
+bindIt it f = IteratorT \_ -> getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m (IterationStep m b)
   processStep step = case step of
     Done -> pure Done
-    Yield value rest -> getStep $ concat (f value) (bind rest f)
+    Yield value rest -> getStep $ concat (f value) (bindIt rest f)
 
 fold :: forall m a b . (Monad m) => (b -> a -> b) -> b -> IteratorT m a -> m b
 fold f b it = getStep it >>= processStep
@@ -94,23 +93,29 @@ mapMaybe f iterator = IteratorT \_ -> doStep iterator
       Nothing -> doStep rest
       Just mappedValue -> pure $ Yield mappedValue $ mapMaybe f rest
 
+toList :: forall m a . Monad m => IteratorT m a -> m (List a)
+toList it =
+  getStep it >>= \step -> case step of
+    Done -> pure List.Nil
+    Yield value rest -> toList rest >>= map pure (List.Cons value)
+
 instance (Monad m) => Functor (IteratorT m) where
-  map = map
+  map = mapIt
 
 instance (Monad m) => Apply (IteratorT m) where
-  apply = apply
+  apply = applyIt
 
 instance (Monad m) => Applicative (IteratorT m) where
   pure = singleton
 
 instance (Monad m) => Bind (IteratorT m) where
-  bind = bind
+  bind = bindIt
 
 instance (Monad m) => MonadTrans IteratorT where
-  lift = lift
+  lift = liftIt
 
 fib :: Int -> Int -> IteratorT Identity Int
 fib a b = IteratorT \_ -> if a < 100 then pure $ Yield (a+b) (fib b (a+b)) else pure Done
 
 square :: forall m . (Monad m) => IteratorT m Int -> IteratorT m Int
-square = map \x -> x * x
+square = mapIt \x -> x * x
