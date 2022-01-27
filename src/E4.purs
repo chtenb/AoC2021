@@ -12,7 +12,7 @@ import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe(..), fromJust)
 import Data.String.CodeUnits (drop)
 import Data.Tuple (Tuple(..))
-import DebugUtils (debug)
+import DebugUtils (debug, debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
@@ -53,27 +53,24 @@ printBoard :: PartialBoard -> String
 printBoard List.Nil = ""
 printBoard (row:rows) = printBoardRow row <> "\n" <> printBoard rows
 
-extractColumn :: PartialBoard -> Tuple (Maybe PartialBoardRow) PartialBoard
-extractColumn List.Nil = Tuple Nothing List.Nil
-extractColumn (List.Nil:rows) = extractColumn rows
-extractColumn ((x:xs):rows) = 
-  case rec of
-    Just rec' -> Tuple (Just (x : rec')) (xs : board)
-    Nothing -> Tuple Nothing List.Nil
-  where
-  Tuple rec board = extractColumn rows
-
 transposeBoard :: Board -> Board
 transposeBoard board = unsafePartial $ fromPartialBoard $ transposePartialBoard $ toPartialBoard board
 
 transposePartialBoard :: PartialBoard -> PartialBoard
 transposePartialBoard List.Nil = List.Nil
 transposePartialBoard original =
-  case columnAsRow of
+  case extractColumn original of
     Nothing -> List.Nil
-    Just x -> x : transposePartialBoard remBoard
-  where
-  Tuple columnAsRow remBoard = extractColumn original
+    Just (Tuple columnAsRow remBoard) -> columnAsRow : transposePartialBoard remBoard
+
+extractColumn :: PartialBoard -> Maybe (Tuple PartialBoardRow PartialBoard)
+extractColumn (List.Nil) = Nothing
+extractColumn (List.Nil:_) = Nothing
+extractColumn ((h:t):List.Nil) = Just $ Tuple (h:List.Nil) (t:List.Nil)
+extractColumn ((h:t):rest) = 
+  case extractColumn rest of
+    Just (Tuple hs ts) -> Just $ Tuple (h : hs) (t : ts)
+    Nothing -> Nothing
 
 checkCell :: Int -> BoardCell -> BoardCell
 checkCell number (BoardCell cellNumber checked) = 
@@ -88,7 +85,7 @@ cellIsChecked :: BoardCell -> Boolean
 cellIsChecked (BoardCell _ checked) = checked
 
 hasBingo :: Board -> Boolean
-hasBingo board = checkAllCells board && checkAllCells (transposeBoard board)
+hasBingo board = checkAllCells board || checkAllCells (transposeBoard board)
   where
   checkAllCells = List.any (List.all cellIsChecked)
 
@@ -127,12 +124,14 @@ playGame (GameState draws boards) = playGame' (toList draws) boards
   playGame' :: List Int -> NonEmptyList Board -> List Score
   playGame' List.Nil _ = List.Nil
   playGame' (draw:remainingNumbers) currentBoards = let
-    newBoards = currentBoards <#> checkNumber draw
+    newBoards = currentBoards <#> checkNumber (debug_ draw)
     winningBoards = NEL.filter hasBingo newBoards
     in case winningBoards of
       List.Nil -> playGame' remainingNumbers newBoards
-      w -> w <#> \b -> getBoardScore draw (debug (printBoard $ toPartialBoard b) b)
+      w -> w <#> \b -> getBoardScore draw (debugBoard b)
 
+debugBoard :: NonEmptyList (NonEmptyList BoardCell) -> NonEmptyList (NonEmptyList BoardCell)
+debugBoard b = debug (printBoard (toPartialBoard b) <> "\n\n" <> printBoard (toPartialBoard (transposeBoard b))) b
 
 runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a
 runParser parser inputString = case unParser (parser <* eof) { str: inputString, pos: 0 } of
