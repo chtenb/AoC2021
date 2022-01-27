@@ -114,20 +114,32 @@ main' :: MaybeT Effect Unit
 main' = do
   inputString <- lift readInput >>= handleLeft
   input <- runParser parseInput inputString # handleLeft
-  scores <- pure $ playGame input
+  scores <- pure $ findLosingScores input
   lift $ Console.log $ show scores
   pure unit
 
-playGame :: GameState -> List Score
-playGame (GameState draws boards) = playGame' (toList draws) boards
+findLosingScores :: GameState -> List Score
+findLosingScores (GameState draws boards) = findLosingScores' (toList draws) (toList boards)
   where
-  playGame' :: List Int -> NonEmptyList Board -> List Score
-  playGame' List.Nil _ = List.Nil
-  playGame' (draw:remainingNumbers) currentBoards = let
+  findLosingScores' :: List Int -> List Board -> List Score
+  findLosingScores' List.Nil _ = List.Nil
+  findLosingScores' (draw:remainingNumbers) currentBoards = let
+    newBoards = currentBoards <#> checkNumber (debug_ draw)
+    nonWinningBoards = List.filter (not hasBingo) newBoards
+    in case nonWinningBoards of
+      List.Nil -> newBoards <#> \b -> getBoardScore draw (debugBoard b)
+      bs -> findLosingScores' remainingNumbers bs
+
+findWinningScores :: GameState -> List Score
+findWinningScores (GameState draws boards) = findWinningScores' (toList draws) boards
+  where
+  findWinningScores' :: List Int -> NonEmptyList Board -> List Score
+  findWinningScores' List.Nil _ = List.Nil
+  findWinningScores' (draw:remainingNumbers) currentBoards = let
     newBoards = currentBoards <#> checkNumber (debug_ draw)
     winningBoards = NEL.filter hasBingo newBoards
     in case winningBoards of
-      List.Nil -> playGame' remainingNumbers newBoards
+      List.Nil -> findWinningScores' remainingNumbers newBoards
       w -> w <#> \b -> getBoardScore draw (debugBoard b)
 
 debugBoard :: NonEmptyList (NonEmptyList BoardCell) -> NonEmptyList (NonEmptyList BoardCell)
