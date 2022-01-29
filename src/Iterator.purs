@@ -115,7 +115,6 @@ fromList :: forall a . List a -> IteratorT Identity a
 fromList List.Nil = empty
 fromList (List.Cons x xs) = IteratorT \_ -> pure $ Yield x (fromList xs)
 
--- TODO: make this tail recursive?
 cartesianProduct :: forall a . List a -> List a -> IteratorT Identity (Tuple a a)
 cartesianProduct List.Nil _ = empty
 cartesianProduct _ List.Nil = empty

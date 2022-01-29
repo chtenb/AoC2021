@@ -73,7 +73,7 @@ pointsOnLine :: LineSegment -> Set Point
 pointsOnLine l = case getLineType l of
   Vertical -> Set.fromFoldable $ Int.range (getY1 l) (getY2 l) <#> \y -> Point (getX1 l) y
   Horizontal -> Set.fromFoldable $ Int.range (getX1 l) (getX2 l) <#> \x -> Point x (getY1 l)
-  _ -> empty
+  Other -> Set.fromFoldable $ List.zip (Int.range (getX1 l) (getX2 l)) (Int.range (getY1 l) (getY2 l)) <#> \(Tuple x y) -> Point x y
 
 intersect :: LineSegment -> LineSegment -> Set Point
 intersect l1 l2 = result -- debug ("intersection between " <> show l1 <> " and " <> show l2 <> " is " <> show result) result
