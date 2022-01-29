@@ -11,17 +11,15 @@ import Data.List as Int
 import Data.List as List
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Data.Set (Set, empty)
+import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
-import Data.Unit as Unit
-import DebugUtils (debug, debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
-import Iterator (allPairs, allPairs', cartesianProduct, fold)
+import Iterator (allPairs', fold)
 import ParserUtils (parseEol, parseInt, runParser, safeMany)
 import Text.Parsing.StringParser (Parser)
 import Text.Parsing.StringParser.CodeUnits (string)
@@ -54,7 +52,7 @@ main' = do
   -- lift $ Console.log $ show output
   lift $ Console.log $ show (Set.size $ output)
   pure unit
-  
+
 compute :: List LineSegment -> Set Point
 compute input = fold f Set.empty (allPairs' input) # unwrap
   where
