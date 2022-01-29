@@ -15,22 +15,22 @@ import Test.QuickCheck.Arbitrary (class Arbitrary)
 
 main :: Effect Unit
 main = do
-  assertSuccess testFoldItRecStackSafety
+  -- assertSuccess testFoldItRecStackSafety
   -- assertSuccess testFoldItStackSafety
   -- assertSuccess testCoRecursionStackSafety
-  -- _ <- pure $ maybeInc 1
+  _ <- pure $ maybeInc 1
   pure unit
 
+maybeInc :: Int -> Maybe Int
+maybeInc 0 = Just 0
+maybeInc x = Just (x+1) >>= maybeInc
+
+{-
 testFoldItRecStackSafety :: Result
 testFoldItRecStackSafety = assertEquals (fold min 0 (incUntil 0 10000000) # unwrap) 0
   where
   incUntil :: Int -> Int -> IteratorT Identity Int
   incUntil i max = IteratorT \_ -> if i < max then pure $ Yield i (incUntil (i+1) max) else pure Done
-
-{-
-maybeInc :: Int -> Maybe Int
-maybeInc 0 = Just 0
-maybeInc x = Just (x+1) >>= maybeInc
 
 testCoRecursionStackSafety :: Result
 testCoRecursionStackSafety = assertEquals 0 (foo 1000000)
