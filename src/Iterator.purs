@@ -2,6 +2,8 @@ module Iterator where
 
 import Prelude
 
+import Control.Monad.Rec.Class (class MonadRec)
+import Control.Monad.Rec.Class as TailRec
 import Control.Monad.Trans.Class (class MonadTrans)
 import Data.Identity (Identity)
 import Data.List (List)
@@ -55,21 +57,30 @@ bindIt it f = IteratorT \_ -> getStep it >>= processStep
     Done -> pure Done
     Yield value rest -> getStep $ concat (f value) (bindIt rest f)
 
-fold :: forall m a b . (Monad m) => (b -> a -> b) -> b -> IteratorT m a -> m b
-fold f b it = getStep it >>= processStep
+unsafeFold :: forall m a b . (Monad m) => (b -> a -> b) -> b -> IteratorT m a -> m b
+unsafeFold f b it = getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m b
   processStep step = case step of
     Done -> pure b
-    Yield value rest -> fold f (f b value) rest
+    Yield value rest -> unsafeFold f (f b value) rest
 
-fold' :: forall m a b . (Monad m) => (b -> a -> m b) -> b -> IteratorT m a -> m b
-fold' f b it = getStep it >>= processStep
+-- tailRecM :: forall a b. (a -> m (Step a b)) -> a -> m b
+fold :: forall m a b . (MonadRec m) => (b -> a -> b) -> b -> IteratorT m a -> m b
+fold f b it = getStep it >>= \step -> TailRec.tailRecM processStep {step: step, acc: b}
+  where
+  processStep :: {step::IterationStep m a, acc::b} -> m (TailRec.Step {step::IterationStep m a, acc::b} b)
+  processStep arg = case arg.step of
+    Done -> pure (TailRec.Done arg.acc)
+    Yield value rest -> getStep rest >>= \step -> pure (TailRec.Loop {step: step, acc: f arg.acc value})
+
+unsafeFold' :: forall m a b . (Monad m) => (b -> a -> m b) -> b -> IteratorT m a -> m b
+unsafeFold' f b it = getStep it >>= processStep
   where
   processStep :: IterationStep m a -> m b
   processStep step = case step of
     Done -> pure b
-    Yield value rest -> f b value >>= \x -> fold' f x rest
+    Yield value rest -> f b value >>= \x -> unsafeFold' f x rest
 
 filter :: forall m a . (Monad m) => (a -> Boolean) -> IteratorT m a -> IteratorT m a
 filter pred iterator = IteratorT \_ -> getStep iterator >>= processStep
@@ -102,25 +113,27 @@ toList it =
 
 fromList :: forall a . List a -> IteratorT Identity a
 fromList List.Nil = empty
-fromList (List.Cons x xs) =IteratorT \_ -> pure $ Yield x (fromList xs)
+fromList (List.Cons x xs) = IteratorT \_ -> pure $ Yield x (fromList xs)
 
+-- TODO: make this tail recursive?
 cartesianProduct :: forall a . List a -> List a -> IteratorT Identity (Tuple a a)
 cartesianProduct List.Nil _ = empty
 cartesianProduct _ List.Nil = empty
-cartesianProduct (List.Cons x xs) ys = concat combineX (cartesianProduct xs ys)
-  where
-  combineX = fromList ys <#> \y -> Tuple x y
+cartesianProduct (List.Cons x xs) ys = concat (combine x ys) (cartesianProduct xs ys)
+
+allPairs :: forall a . List a -> IteratorT Identity (Tuple a a)
+allPairs list = cartesianProduct list list
 
 -- without duplicates
-allPairs :: forall a . List a -> IteratorT Identity (Tuple a a)
-allPairs list = allPairs' List.Nil list
+allPairs' :: forall a . List a -> IteratorT Identity (Tuple a a)
+allPairs' list = allPairsRec List.Nil list
   where
-  allPairs' :: List a -> List a -> IteratorT Identity (Tuple a a)
-  allPairs' _ List.Nil = empty
-  allPairs' left (List.Cons x right) = concat (concat (combineX left) (combineX right)) (allPairs' (List.Cons x left) right)
-    where
-    combineX :: List a -> IteratorT Identity (Tuple a a)
-    combineX others = fromList others <#> \y -> Tuple x y
+  allPairsRec :: List a -> List a -> IteratorT Identity (Tuple a a)
+  allPairsRec _ List.Nil = empty
+  allPairsRec left (List.Cons x right) = concat (concat (combine x left) (combine x right)) (allPairsRec (List.Cons x left) right)
+
+combine :: forall a . a -> List a -> IteratorT Identity (Tuple a a)
+combine x others = fromList others <#> \y -> Tuple x y
 
 instance (Monad m) => Functor (IteratorT m) where
   map = mapIt
@@ -138,11 +151,3 @@ instance (Monad m) => Monad (IteratorT m)
 
 instance MonadTrans IteratorT where
   lift = liftIt
-
--- EXAMPLES
-
-fib :: Int -> Int -> IteratorT Identity Int
-fib a b = IteratorT \_ -> if a < 100 then pure $ Yield (a+b) (fib b (a+b)) else pure Done
-
-square :: forall m . (Monad m) => IteratorT m Int -> IteratorT m Int
-square = mapIt \x -> x * x

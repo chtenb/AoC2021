@@ -49,6 +49,7 @@ to generate this file without the comments in this block.
   , "string-parsers"
   , "strings"
   , "stringutils"
+  , "tailrec"
   , "transformers"
   , "tuples"
   , "unfoldable"

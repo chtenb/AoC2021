@@ -21,7 +21,7 @@ import DebugUtils (debug, debug_)
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
-import Iterator (allPairs, fold)
+import Iterator (allPairs, allPairs', cartesianProduct, fold)
 import ParserUtils (parseEol, parseInt, runParser, safeMany)
 import Text.Parsing.StringParser (Parser)
 import Text.Parsing.StringParser.CodeUnits (string)
@@ -54,9 +54,9 @@ main' = do
   -- lift $ Console.log $ show output
   lift $ Console.log $ show (Set.size $ output)
   pure unit
-
+  
 compute :: List LineSegment -> Set Point
-compute input = fold f Set.empty (allPairs input) # unwrap
+compute input = fold f Set.empty (allPairs' input) # unwrap
   where
   f :: Set Point -> Tuple LineSegment LineSegment -> Set Point
   f intersections (Tuple l1 l2) = Set.union (intersect l1 l2) intersections
