@@ -74,13 +74,22 @@ isValidCoord grid coord = Map.lookup coord grid # isJust
 -- GLUE
 
 mainExcept :: OctopusGrid -> Except String Int
-mainExcept grid = simulate100Steps grid # countFlashes # pure
+-- mainExcept grid = simulate100Steps grid # countFlashes # pure
+mainExcept grid = pure $ simulateUntilAllFlashing grid
 
 simulate100Steps :: OctopusGrid -> OctopusGrid
 simulate100Steps = repeat 100 simulateStep
 
 simulateStep :: OctopusGrid -> OctopusGrid
 simulateStep = increaseLevelOfOctopuses >>> processFlashes >>> resetEnergiesAndUpdateFlashCounts
+
+simulateUntilAllFlashing :: OctopusGrid -> Int
+simulateUntilAllFlashing = go 1
+  where
+  go round grid = 
+    let x = grid # increaseLevelOfOctopuses # processFlashes 
+    in if areAllOctopusesFlashing x then round
+    else go (round + 1) (resetEnergiesAndUpdateFlashCounts x)
 
 -- LOGIC
 
@@ -112,6 +121,9 @@ processFlash :: OctopusGrid -> Coord -> OctopusGrid
 processFlash grid coord = List.foldl increaseLevelOfOctopusAt grid neighbors # flip markOctopusAsFlashed coord
   where
   neighbors = neighborCoords grid coord
+
+areAllOctopusesFlashing :: OctopusGrid -> Boolean
+areAllOctopusesFlashing grid = Map.filter (_.hashFlashedInCurrentStep) grid # Map.size # eq 100
 
 resetEnergiesAndUpdateFlashCounts :: OctopusGrid -> OctopusGrid
 resetEnergiesAndUpdateFlashCounts grid =
