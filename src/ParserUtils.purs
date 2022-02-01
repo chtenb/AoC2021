@@ -61,6 +61,13 @@ parseInt =
       Nothing -> (fail "error parsing int")
       Just int -> pure int
 
+parseDigit :: Parser Int
+parseDigit =
+  anyDigit <#> Array.singleton <#> Array.fromFoldable <#> String.fromCharArray <#> Int.fromString
+    >>= \maybeInt -> case maybeInt of
+      Nothing -> (fail "error parsing digit as int")
+      Just int -> pure int
+
 
 runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a
 runParser parser inputString = case unParser (parser <* eof) { str: inputString, pos: 0 } of
