@@ -3,21 +3,22 @@ module E11 where
 import Prelude
 
 import Control.Monad.Cont.Trans (lift)
-import Control.Monad.Except (Except, ExceptT, except, runExcept, runExceptT, throwError, withExceptT)
-import Data.Array as Array
-import Data.Either (Either(..), note)
+import Control.Monad.Except (Except, ExceptT, except, runExcept, runExceptT, withExceptT)
+import Data.Either (Either(..))
 import Data.Foldable (sum)
-import Data.List (List, (:))
+import Data.FunctorWithIndex (mapWithIndex)
+import Data.List (List)
 import Data.List as List
-import Data.Maybe (Maybe(..))
-import Data.Set (Set)
-import Data.Set as Set
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(..), isJust)
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console as Console
 import Effect.Exception (Error)
 import ParserUtils (parseDigit, parseEol, runParser, safeMany)
 import Text.Parsing.StringParser (Parser)
-import Utils (aggregateExceptArray, readFile)
+import Utils (readFile, repeat)
 
 main :: Effect Unit
 main = do
@@ -30,59 +31,107 @@ mainExceptEffect :: ExceptT String Effect Int
 mainExceptEffect = do
   inputString <- lift readInput >>= except # withExceptT show
   input <- runInputParser inputString
-  except $ runExcept $ mainExcept input
-
-mainExcept :: EnergyMap -> Except String Int
-mainExcept input = pure 0
+  grid <- pure $ createGrid input
+  except $ runExcept $ mainExcept grid
 
 -- PARSE INPUT
 
 readInput :: Effect (Either Error String)
-readInput = readFile "data/11-test.txt"
+readInput = readFile "data/11.txt"
 
-runInputParser :: String -> ExceptT String Effect EnergyMap
+runInputParser :: String -> ExceptT String Effect (List (List Int))
 runInputParser inputString = runParser parseInput inputString # except # withExceptT show
 
-parseInput :: Parser EnergyMap
+parseInput :: Parser (List (List Int))
 parseInput = do
   lines <- safeMany parseLine
-  pure $ Array.fromFoldable lines
+  pure $ lines
 
-parseLine :: Parser EnergyMapRow
+parseLine :: Parser (List Int)
 parseLine = do
   line <- safeMany parseDigit
   _ <- parseEol
-  pure $ EnergyMapRow $ Array.fromFoldable line
+  pure $ line
+
+createGrid :: List (List Int) -> OctopusGrid
+createGrid rows = mapWithIndex (\y row -> mapWithIndex (createOctopus y) row) rows # List.concat # Map.fromFoldable
+
+createOctopus :: Int -> Int -> Int -> Tuple Coord Octopus
+createOctopus y x digit = Tuple { x, y } { energy: digit, flashCount: 0, hashFlashedInCurrentStep: false }
 
 -- PRIMITIVES
 
-type EnergyLevel = Int
-newtype EnergyMapRow = EnergyMapRow (Array EnergyLevel)
-type EnergyMap = Array EnergyMapRow
-type EnergyMapCoord = { x :: Int, y :: Int}
+type Octopus = { energy :: Int, flashCount :: Int, hashFlashedInCurrentStep :: Boolean }
+type OctopusGrid = Map Coord Octopus
+type Coord = { x :: Int, y :: Int}
 
-getEnergy :: EnergyMap -> EnergyMapCoord -> Maybe EnergyLevel
-getEnergy energyMap { x, y } = do
-  EnergyMapRow row <- Array.index energyMap y
-  Array.index row x
+gridToList :: OctopusGrid -> List (Tuple Coord Octopus)
+gridToList = Map.toUnfoldable
 
-energyMapCoords :: EnergyMap -> Array EnergyMapCoord
-energyMapCoords energyMap = Array.mapWithIndex (\y (EnergyMapRow row) -> Array.mapWithIndex (\x _ -> { x, y }) row) energyMap # Array.concat
+isValidCoord :: OctopusGrid -> Coord -> Boolean
+isValidCoord grid coord = Map.lookup coord grid # isJust
 
 -- GLUE
 
+mainExcept :: OctopusGrid -> Except String Int
+mainExcept grid = simulate100Steps grid # countFlashes # pure
+
+simulate100Steps :: OctopusGrid -> OctopusGrid
+simulate100Steps = repeat 100 simulateStep
+
+simulateStep :: OctopusGrid -> OctopusGrid
+simulateStep = increaseLevelOfOctopuses >>> processFlashes >>> resetEnergiesAndUpdateFlashCounts
+
 -- LOGIC
 
+increaseLevelOfOctopuses :: OctopusGrid -> OctopusGrid
+increaseLevelOfOctopuses grid = grid <#> increaseLevelOfOctopus
+
+increaseLevelOfOctopus :: Octopus -> Octopus
+increaseLevelOfOctopus octopus = octopus { energy = octopus.energy + 1 }
+
+increaseLevelOfOctopusAt :: OctopusGrid -> Coord -> OctopusGrid
+increaseLevelOfOctopusAt grid coord = Map.update (increaseLevelOfOctopus >>> Just) coord grid
+
+markOctopusAsFlashed :: OctopusGrid -> Coord -> OctopusGrid
+markOctopusAsFlashed grid coord = Map.update (_ { hashFlashedInCurrentStep = true } >>> Just) coord grid
+
+processFlashes :: OctopusGrid -> OctopusGrid
+processFlashes grid =
+  case findFlashingOctopus grid of
+    Nothing -> grid
+    Just coord -> processFlashes (processFlash grid coord)
+
+findFlashingOctopus :: OctopusGrid -> Maybe Coord
+findFlashingOctopus grid = 
+  gridToList grid
+    # List.find (\(Tuple _ octopus) -> octopus.energy > 9 && not octopus.hashFlashedInCurrentStep)
+    <#> \(Tuple coord _) -> coord
+
+processFlash :: OctopusGrid -> Coord -> OctopusGrid
+processFlash grid coord = List.foldl increaseLevelOfOctopusAt grid neighbors # flip markOctopusAsFlashed coord
+  where
+  neighbors = neighborCoords grid coord
+
+resetEnergiesAndUpdateFlashCounts :: OctopusGrid -> OctopusGrid
+resetEnergiesAndUpdateFlashCounts grid =
+  grid <#> \octopus -> 
+    if 9 < octopus.energy 
+    then octopus { energy = 0, flashCount = octopus.flashCount + 1, hashFlashedInCurrentStep = false }
+    else octopus
+
+countFlashes :: OctopusGrid -> Int
+countFlashes grid = Map.values grid <#> _.flashCount # sum
+
 -- Array of neighbors
-neighborCoords :: EnergyMap -> EnergyMapCoord -> Array EnergyMapCoord
-neighborCoords energyMap coord =
+neighborCoords :: OctopusGrid -> Coord -> List Coord
+neighborCoords grid coord =
   [ { x: coord.x, y: coord.y - 1}
   , { x: coord.x, y: coord.y + 1}
   , { x: coord.x - 1, y: coord.y}
   , { x: coord.x + 1, y: coord.y}
-  ] # Array.filter (isValidCoord energyMap)
-
-isValidCoord :: EnergyMap -> EnergyMapCoord -> Boolean
-isValidCoord energyMap coord = case getEnergy energyMap coord of
-  Nothing -> false
-  Just _ -> true
+  , { x: coord.x + 1, y: coord.y + 1}
+  , { x: coord.x + 1, y: coord.y - 1}
+  , { x: coord.x - 1, y: coord.y + 1}
+  , { x: coord.x - 1, y: coord.y - 1}
+  ] # List.fromFoldable # List.filter (isValidCoord grid)

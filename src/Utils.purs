@@ -48,3 +48,6 @@ aggregateExceptList list = list <#> runExcept # listOfEithersToEitherList # exce
 
 aggregateExceptArray :: forall a e . (Show a) => Array (Except e a) -> Except e (Array a)
 aggregateExceptArray list = list # List.fromFoldable # aggregateExceptList <#> Array.fromFoldable
+
+repeat :: forall a . Int -> (a -> a) -> a -> a
+repeat times f start = List.range 1 times # List.foldl (\a _ -> f a) start
