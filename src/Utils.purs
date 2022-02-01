@@ -2,6 +2,8 @@ module Utils where
 
 import Prelude
 
+import Control.Monad.Except (Except, except, runExcept)
+import Data.Array as Array
 import Data.Either (Either(..))
 import Data.List (List)
 import Data.List as List
@@ -29,14 +31,20 @@ listOfMaybesToMaybeList listOfMaybes =
           Just int -> Just $ List.Cons int resultList
 
 
--- Picks the last left if any
+-- Picks the first left if any
 listOfEithersToEitherList :: forall a l . (Show a) => List (Either l a) -> Either l (List a)
 listOfEithersToEitherList listOfEithers =
-    List.foldr f (Right List.Nil) listOfEithers
+    List.reverse <$> List.foldl f (Right List.Nil) listOfEithers
       where
-      f :: Either l a -> Either l (List a) -> Either l (List a)
-      f either eitherResultList = case eitherResultList of
+      f :: Either l (List a) -> Either l a -> Either l (List a)
+      f eitherResultList either = case eitherResultList of
         Right resultList -> case either of
           Right elem -> Right $ List.Cons elem resultList
           Left l -> Left l
         l -> l
+
+aggregateExceptList :: forall a e . (Show a) => List (Except e a) -> Except e (List a)
+aggregateExceptList list = list <#> runExcept # listOfEithersToEitherList # except
+
+aggregateExceptArray :: forall a e . (Show a) => Array (Except e a) -> Except e (Array a)
+aggregateExceptArray list = list # List.fromFoldable # aggregateExceptList <#> Array.fromFoldable

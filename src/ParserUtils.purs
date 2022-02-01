@@ -55,19 +55,20 @@ parseSpaces :: Parser String
 parseSpaces = regex """[ ]*"""
 
 parseInt :: Parser Int
-parseInt =
-  many anyDigit <#> Array.fromFoldable <#> String.fromCharArray <#> Int.fromString
-    >>= \maybeInt -> case maybeInt of
-      Nothing -> (fail "error parsing int")
-      Just int -> pure int
+parseInt = do
+  digitChars <- safeMany anyDigit
+  digitString <- digitChars # Array.fromFoldable # String.fromCharArray # pure
+  case Int.fromString digitString of
+    Nothing -> fail $ "error parsing digits " <> digitString <> " as int"
+    Just int -> pure int
 
 parseDigit :: Parser Int
-parseDigit =
-  anyDigit <#> Array.singleton <#> Array.fromFoldable <#> String.fromCharArray <#> Int.fromString
-    >>= \maybeInt -> case maybeInt of
-      Nothing -> (fail "error parsing digit as int")
-      Just int -> pure int
-
+parseDigit = do
+  digitChar <- anyDigit
+  digitString <- digitChar # Array.singleton # String.fromCharArray # pure
+  case Int.fromString digitString of
+    Nothing -> fail $ "error parsing digit " <> digitString <> " as int"
+    Just int -> pure int
 
 runParser :: forall a. Parser a -> String -> Either {position::String,error::String,suffix::String} a
 runParser parser inputString = case unParser (parser <* eof) { str: inputString, pos: 0 } of
