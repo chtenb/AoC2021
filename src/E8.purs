@@ -91,12 +91,14 @@ findByFrequency freqMap freq = toList freqMap # List.find (\(Tuple _ frequency) 
 
 -- sum segment frequencies of all unique signal patterns, and add the segments from signal pattern four another 3 times
 findFrequencyMap :: List SignalPattern -> FrequencyMap
-findFrequencyMap uniqueOccurrences = foldl addFrequencyMap emptyFrequencyMap occurenceMaps
-  where
+findFrequencyMap uniqueOccurrences = 
+  let
   occurenceMaps = occurences <#> fromSignalPattern
   occurences = four : four : four : four : uniqueOccurrences 
   byLength = findPatternsByLength uniqueOccurrences
   four = byLength.four
+  in
+  foldl addFrequencyMap emptyFrequencyMap occurenceMaps
 
 fromSignalPattern :: SignalPattern -> FrequencyMap
 fromSignalPattern pattern = String.toCharArray pattern # foldl go emptyFrequencyMap
