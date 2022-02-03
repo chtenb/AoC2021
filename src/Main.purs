@@ -12,16 +12,17 @@ import E8 as E8
 import E9 as E9
 import E10 as E10
 import E11 as E11
+import E12 as E12
 
 import Data.List (List, (:))
 import Data.List as List
 import Effect (Effect)
 import Effect.Console as Console
+
 foreign import argv :: Array String
 
 args :: List String
 args = List.drop 2 $ List.fromFoldable argv
-
 
 main :: Effect Unit
 main = do
@@ -37,4 +38,5 @@ main = do
     "9" : _ -> E9.main
     "10" : rest -> E10.main rest
     "11" : _ -> E11.main
+    "12" : _ -> E12.main
     _ -> Console.error "provide valid exercise"
