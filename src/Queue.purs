@@ -38,5 +38,3 @@ toList (Queue { pushStack, popStack }) = popStack <> List.reverse pushStack
 
 merge :: forall a. Queue a -> Queue a -> Queue a
 merge q1 q2 = fromList (toList q1 <> toList q2)
-
--- make it a double sided queue with same performance characteristics
