@@ -18,7 +18,7 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
-import Debug (spy, spyWith)
+import Debug (spy, spyWith, trace)
 import DebugUtils (debug)
 import Effect (Effect)
 import Effect.Console as Console
@@ -95,6 +95,9 @@ type CaveGraph = Map Cave CaveNeighborhood
 start :: Cave
 start = Small "start"
 
+isStart :: Cave -> Boolean
+isStart = eq start
+
 end :: Cave
 end = Small "end"
 
@@ -106,16 +109,17 @@ mainExcept graph = pure (countAllPaths graph)
 -- LOGIC
 
 countAllPaths :: CaveGraph -> Int
-countAllPaths graph = go Set.empty start
+countAllPaths graph = go Set.empty start false
   where
-  go :: Set Cave -> Cave -> Int
-  go visited currentCave =
+  go :: Set Cave -> Cave -> Boolean -> Int
+  go visited currentCave hasVisitedASmallCaveTwice =
     case currentCave of
-      Small "end" -> flip const (spy "found path " (Array.fromFoldable visited)) 1
+      Small "end" -> 1
+      Big _ -> (getNeighbors currentCave) <#> (\neighbor -> go visited neighbor hasVisitedASmallCaveTwice) # sum
       Small _ ->
-        if Set.member currentCave visited then 0
-        else (getNeighbors currentCave) <#> (\neighbor -> go (Set.insert currentCave visited) neighbor) # sum
-      Big _ -> (getNeighbors currentCave) <#> (\neighbor -> go visited neighbor) # sum
+        if Set.member currentCave visited && (hasVisitedASmallCaveTwice || isStart currentCave) then 0
+        else if Set.member currentCave visited then (getNeighbors currentCave) <#> (\neighbor -> go (Set.insert currentCave visited) neighbor true) # sum
+        else (getNeighbors currentCave) <#> (\neighbor -> go (Set.insert currentCave visited) neighbor hasVisitedASmallCaveTwice) # sum
 
   getNeighbors :: Cave -> Array Cave
   getNeighbors cave = case Map.lookup cave graph of
