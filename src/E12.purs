@@ -109,17 +109,25 @@ mainExcept graph = pure (countAllPaths graph)
 -- LOGIC
 
 countAllPaths :: CaveGraph -> Int
-countAllPaths graph = go Set.empty start false
+countAllPaths graph = go Set.empty false start
   where
-  go :: Set Cave -> Cave -> Boolean -> Int
-  go visited currentCave hasVisitedASmallCaveTwice =
-    case currentCave of
-      Small "end" -> 1
-      Big _ -> (getNeighbors currentCave) <#> (\neighbor -> go visited neighbor hasVisitedASmallCaveTwice) # sum
-      Small _ ->
-        if Set.member currentCave visited && (hasVisitedASmallCaveTwice || isStart currentCave) then 0
-        else if Set.member currentCave visited then (getNeighbors currentCave) <#> (\neighbor -> go (Set.insert currentCave visited) neighbor true) # sum
-        else (getNeighbors currentCave) <#> (\neighbor -> go (Set.insert currentCave visited) neighbor hasVisitedASmallCaveTwice) # sum
+
+  go :: Set Cave -> Boolean -> Cave -> Int
+  go visited hasVisitedASmallCaveTwice currentCave =
+    let
+      recurseOnNeighbors visited' hasVisitedASmallCaveTwice' =
+        getNeighbors currentCave <#> go visited' hasVisitedASmallCaveTwice' # sum
+    in
+      case currentCave of
+        Small "end" -> 1
+        Big _ -> recurseOnNeighbors visited hasVisitedASmallCaveTwice
+        Small _ ->
+          if Set.member currentCave visited && (hasVisitedASmallCaveTwice || isStart currentCave) then
+            0
+          else if Set.member currentCave visited then
+            recurseOnNeighbors (Set.insert currentCave visited) true
+          else
+            recurseOnNeighbors (Set.insert currentCave visited) hasVisitedASmallCaveTwice
 
   getNeighbors :: Cave -> Array Cave
   getNeighbors cave = case Map.lookup cave graph of

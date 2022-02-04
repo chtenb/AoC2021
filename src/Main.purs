@@ -13,6 +13,7 @@ import E9 as E9
 import E10 as E10
 import E11 as E11
 import E12 as E12
+import E13 as E13
 
 import Data.List (List, (:))
 import Data.List as List
@@ -39,4 +40,5 @@ main = do
     "10" : rest -> E10.main rest
     "11" : _ -> E11.main
     "12" : _ -> E12.main
+    "13" : _ -> E13.main
     _ -> Console.error "provide valid exercise"
