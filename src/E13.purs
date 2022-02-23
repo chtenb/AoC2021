@@ -85,8 +85,8 @@ mainExcept { paper, instructions } = applyFoldInstructions instructions paper # 
 
 --- PRIMITIVES
 
--- type Point = { x :: Int, y :: Int }
 type Point = { y :: Int, x :: Int }
+-- type Point = { x :: Int, y :: Int }
 type Paper = Set Point
 data FoldInstruction = AlongY Int | AlongX Int
 type Input = { paper :: Paper, instructions :: Array FoldInstruction }
