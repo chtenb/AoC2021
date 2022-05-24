@@ -26,7 +26,7 @@ version:            0.1.0.0
 --extra-source-files: CHANGELOG.md
 
 executable Main
-    main-is: Main.hs
+    main-is: Interview.hs
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -39,7 +39,9 @@ executable Main
         containers,
         generic-arbitrary ^>=0.1.0,
         PSQueue,
-        parsec ^>=3.1.15.0
+        parsec ^>=3.1.15.0,
+        QuickCheck ^>=2.14.2,
+        generic-arbitrary ^>=0.1.0
     hs-source-dirs:   src
     default-language: Haskell2010
 

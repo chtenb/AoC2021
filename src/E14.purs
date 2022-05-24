@@ -2,13 +2,16 @@ module E14 where
 
 import Prelude
 
+import Control.Alt (class Alt)
 import Control.Monad.Cont.Trans (lift)
 import Control.Monad.Except (Except, ExceptT, except, runExcept, runExceptT, withExceptT)
 import Data.Array as Array
 import Data.Either (Either(..))
+import Data.Foldable (class Foldable, foldMap)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Monoid.Alternate (Alternate(..))
 import Data.Tuple (Tuple(..))
 import Data.Tuple as Tuple
 import Effect (Effect)
@@ -102,3 +105,31 @@ concatInsertionResult chunks =
     combine result chunk = result <> (Array.drop 1 chunk)
   in
     Array.foldl combine head tail
+
+newtype FoldableAlt (m :: Type -> Type) a = FoldableAlt (m a)
+
+-- Alternate
+
+instance (Foldable m, Alt m) => Functor (FoldableAlt m) where
+  map :: forall a b. (a -> b) -> FoldableAlt m a -> FoldableAlt m b
+  map f (FoldableAlt ma) = FoldableAlt $ map f ma
+
+-- TODO: do we need the Applicative constraint?
+instance (Foldable m, Alt m, Applicative m) => Apply (FoldableAlt m) where
+  apply :: forall a b. FoldableAlt m (a -> b) -> FoldableAlt m a -> FoldableAlt m b
+  apply (FoldableAlt mf) (FoldableAlt ma) = FoldableAlt $ mf <*> ma
+
+instance (Foldable m, Alt m, Applicative m) => Applicative (FoldableAlt m) where
+  pure :: forall a. a -> FoldableAlt m a
+  pure a = FoldableAlt $ pure a
+
+instance (Foldable m, Alt m, Applicative m) => Bind (FoldableAlt m) where
+  bind :: forall a b. FoldableAlt m a -> (a -> FoldableAlt m b) -> FoldableAlt m b
+  bind (FoldableAlt ma) f = FoldableAlt $ unAlternate $ foldMap h (Alternate ma)
+    where
+    -- h :: forall m a b. a → (Alternate m b)
+    h a = Alternate (f a)
+
+unAlternate (Alternate a) = a
+
+-- instance (Foldable m, Alt m) => Monad (FoldableMonoid m)
