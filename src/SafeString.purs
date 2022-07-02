@@ -22,6 +22,10 @@ derive newtype instance Show SafeString
 derive newtype instance Semigroup SafeString
 derive newtype instance Monoid SafeString
 
+-- O(n)
+fromString :: String -> SafeString
+fromString = undefined
+
 uncons :: String -> Maybe { head :: CodePoint, tail :: SafeString }
 uncons = undefined
 
@@ -33,9 +37,6 @@ fromCodePointArray = undefined
 
 takeWhile :: (CodePoint -> Boolean) -> SafeString -> SafeString
 takeWhile = undefined
-
-splitAt :: Int -> SafeString -> { after :: SafeString, before :: SafeString }
-splitAt = undefined
 
 singleton :: CodePoint -> SafeString
 singleton = undefined
@@ -51,9 +52,6 @@ derive instance newtypePattern :: Newtype Pattern _
 
 instance showPattern :: Show Pattern where
   show (Pattern s) = "(Pattern " <> show s <> ")"
-
-indexOf :: Pattern -> SafeString -> Maybe Int
-indexOf = undefined
 
 stripSuffix :: Pattern -> SafeString -> Maybe SafeString
 stripSuffix = undefined
@@ -112,11 +110,21 @@ nextOffset = undefined
 prevOffset :: Offset -> Maybe Offset
 prevOffset = undefined
 
+-- O(n)
+offset :: Int -> SafeString -> Maybe Offset
+offset = undefined
+
 charAfter :: Offset -> Maybe Char
 charAfter = undefined
 
+startOf :: Pattern -> SafeString -> Maybe Offset
+startOf = undefined
+
 subString :: Partial => Offset -> Offset -> SafeString
 subString = undefined
+
+splitAt :: Offset -> SafeString -> { after :: SafeString, before :: SafeString }
+splitAt = undefined
 
 prop_emptyStringOffset = startOffset mempty == endOffset mempty
 prop_charAfterEmptyString = charAfter (startOffset mempty) == Nothing
@@ -153,6 +161,10 @@ nextIndex = undefined
 
 prevIndex :: Index -> Maybe Index
 prevIndex = undefined
+
+-- O(n)
+index :: Int -> SafeString -> Maybe Index
+index = undefined
 
 charAt :: Index -> Char
 charAt = undefined
